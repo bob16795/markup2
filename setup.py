@@ -11,8 +11,8 @@ setup(
         'click',
     ],
     entry_points={
-        'console_scripts': ['markup_n = markup_new.compile:main',
-                            'mu_n = markup_new.compile:main']
+        'console_scripts': ['markup2 = markup_new.compile:main',
+                            'mu2 = markup_new.compile:main']
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
