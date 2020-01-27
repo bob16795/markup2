@@ -1,4 +1,5 @@
-from markup_new import nodes, tokenclass, errors
+from markup_new import nodes, tokenclass, output
+from __main__ import *
 
 class ParseResult:
     def __init__(self):
@@ -137,7 +138,7 @@ class Parser:
         res = ParseResult()
         node = self.prop_div()
         if node == None:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "Start of Prop Section Expected"))
         node_list = []
@@ -146,7 +147,7 @@ class Parser:
             node = self.prop_line()
         node = res.register(self.prop_div())
         if res.error:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "End of Prop Section Expected"))
         node_list.append(node)
@@ -155,6 +156,9 @@ class Parser:
     def text_sec(self):
         res = ParseResult()
         node = res.register(self.text_comment())
+        if res.error:
+            res.failure(None)
+            node = res.register(self.text_list())
         if res.error:
             res.failure(None)
             node = res.register(self.text_line())
@@ -166,16 +170,17 @@ class Parser:
             node = res.register(self.text_heading())
         if res.error:
             res.failure(None)
-            node = res.register(self.text_list())
+            node = res.register(self.text_table())
         if res.error:
-            return res.failure(errors.InvalidSyntaxError(
-                    self.current_tok.pos_start, self.current_tok.pos_end,
-                    "Bad Text Sec"))
+            return res.failure(res.error)
         node_list = []
         while not res.error:
             res.failure(None)
             node_list.append(node)
             node = res.register(self.text_comment())
+            if res.error:
+                res.failure(None)
+                node = res.register(self.text_list())
             if res.error:
                 res.failure(None)
                 node = res.register(self.text_line())
@@ -187,11 +192,11 @@ class Parser:
                 node = res.register(self.text_heading())
             if res.error:
                 res.failure(None)
-                node = res.register(self.text_list())
+                node = res.register(self.text_table())
         res.failure(None)
         node = res.register(self.text_par_end())
         if res.error:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "End of text Section Expected"))
         node_list.append(node)
@@ -204,7 +209,7 @@ class Parser:
             while self.current_tok.type in (tokenclass.TT_NEWLINE):
                 self.advance()
             return res.success(nodes.TextParEndNode())
-        return res.failure(errors.InvalidSyntaxError(
+        return res.failure(output.InvalidSyntaxError(
                 self.current_tok.pos_start, self.current_tok.pos_end,
                 "End Paragraph Expected"))
 
@@ -215,23 +220,40 @@ class Parser:
         while node is not None:
             text += node.text
             self.advance()
-            node = res.register(self.alphanum())
+            node = res.register(self.alphanummore())
         res.failure(None)
         if text == "":
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no Text in line"))
         if not self.current_tok.type in (tokenclass.TT_NEWLINE, tokenclass.TT_EOF):
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no end of line after text"))
         self.advance()
         return res.success(nodes.TextLineNode(text))
 
+    def text_table(self):
+        res = ParseResult()
+        rows = []
+        node = res.register(self.table_top())
+        if res.error:
+            return res.failure(res.error)
+        while node is not None:
+            rows.append(node)
+            node = res.register(self.table_row())
+        res.failure(None)
+        if len(rows) < 2:
+            return res.failure(output.InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "not enough rows in table"))
+        return res.success(nodes.TableNode(rows))
+
     def text_comment(self):
+        start = self.current_tok.pos_start
         res = ParseResult()
         if not self.current_tok.type is (tokenclass.TT_EXCLAIM):
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no exclaim starting comment"))
         text = ""
@@ -256,8 +278,9 @@ class Parser:
             elif self.current_tok.type == tokenclass.TT_RPAREN:
                 text += ")"
             self.advance()
+        end = self.current_tok.pos_start
         self.advance()
-        return res.success(nodes.TextCommentNode(text))
+        return res.success(nodes.TextCommentNode(text, start, end))
 
     def text_heading(self):
         res = ParseResult()
@@ -276,24 +299,99 @@ class Parser:
             return res.failure(res.error)
         return res.success(node)
 
+    def table_top(self):
+        res = ParseResult()
+        heading = res.register(self.table_row())
+        if res.error:
+            return res.failure(output.InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "table has no heading"))
+        split = res.register(self.table_split())
+        if res.error:
+            return res.failure(output.InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "table row has no split"))
+        return res.success(nodes.TableHeadingNode(heading.columns))
+    
+    def table_row(self):
+        res = ParseResult()
+        start_pos = self.current_tok.pos_start
+        error = False
+        text = []
+        while error == False:
+            error = True
+            if self.current_tok.type is tokenclass.TT_BAR:
+                self.advance()
+                node = self.alphanum()
+                if not node is None:
+                    text.append(node.text)
+                    error = False
+                else:
+                    self.devance(1)
+        if text == []:
+            return res.failure(output.InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "table sucks"))
+        if not self.current_tok.type is tokenclass.TT_BAR:
+            return res.failure(output.InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "table row has no end"))
+        self.advance()
+        tok = self.current_tok
+        if not tok.type == tokenclass.TT_NEWLINE:
+                return res.failure(output.InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "no newline after heading"))
+        end_pos = self.current_tok.pos_start
+        self.advance()
+        return res.success(nodes.TableRowNode(text, start_pos, end_pos))
+
+    def table_split(self):
+        res = ParseResult()
+        error = False
+        text = []
+        while not error:
+            error = True
+            if self.current_tok.type is tokenclass.TT_BAR:
+                self.advance()
+                while self.current_tok.type is tokenclass.TT_MINUS:
+                    self.advance()
+                    error = False
+                if error is True:
+                    self.devance(1)
+        if not self.current_tok.type is tokenclass.TT_BAR:
+            return res.failure(output.InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "table row has no end"))
+
+        self.advance()
+        tok = self.current_tok
+        if not tok.type == tokenclass.TT_NEWLINE:
+                return res.failure(output.InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "no newline after heading"))
+        self.advance()
+        return res.success(nodes.TableSplitNode())
+
+
     def heading_1(self):
         res = ParseResult()
         for i in range(1):
             tok = self.current_tok
             if not tok.type == tokenclass.TT_HASH:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "not enough hashes"))
             self.advance()
         node = self.alphanummore()
         if node is None:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no text in heading"))
         text = node.text
         tok = self.current_tok
         if not tok.type == tokenclass.TT_NEWLINE:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "no newline after heading"))
         self.advance()
@@ -304,19 +402,19 @@ class Parser:
         for i in range(2):
             tok = self.current_tok
             if not tok.type == tokenclass.TT_HASH:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "not enough hashes"))
             self.advance()
         node = self.alphanummore()
         if node is None:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no text in heading"))
         text = node.text
         tok = self.current_tok
         if not tok.type == tokenclass.TT_NEWLINE:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "no newline after heading"))
         self.advance()
@@ -327,19 +425,19 @@ class Parser:
         for i in range(3):
             tok = self.current_tok
             if not tok.type == tokenclass.TT_HASH:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "not enough hashes"))
             self.advance()
         node = self.alphanummore()
         if node is None:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no text in heading"))
         text = node.text
         tok = self.current_tok
         if not tok.type == tokenclass.TT_NEWLINE:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "no newline after heading"))
         self.advance()
@@ -348,12 +446,12 @@ class Parser:
     def tag(self):
         res = ParseResult()
         if not self.current_tok.type is (tokenclass.TT_LTAG):
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no tag start"))
         self.advance()
         if not self.current_tok.type in (tokenclass.TT_TEXT, tokenclass.TT_NUM):
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no tag text"))
         tag_name = self.current_tok.value
@@ -363,17 +461,17 @@ class Parser:
             self.advance()
             node = self.alphanum()
             if node is None:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "no tag text"))
             tag_value = node.text
         if not self.current_tok.type is (tokenclass.TT_RTAG):
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no tag end"))
         self.advance()
         if not self.current_tok.type is (tokenclass.TT_NEWLINE):
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no new line after tag"))
         self.advance()
@@ -381,94 +479,105 @@ class Parser:
 
     def text_list(self):
         res = ParseResult()
+        node_list = []
         start = self.tok_idx
-        node = res.register(self.list_level_3())
-        if res.error:
-            res.failure(None)
-            self.goto(start)
-            node = res.register(self.list_level_2())
-        if res.error:
-            res.failure(None)
-            self.goto(start)
-            node = res.register(self.list_level_1())
-        if res.error:
-            self.goto(start)
-            return res.failure(res.error)
-        return res.success(node)
+        node = None
+        error = False
+        while error == False:
+            start = self.tok_idx
+            node_list.append(node)
+            node = res.register(self.list_level_3())
+            if node == None:
+                res.failure(None)
+                self.goto(start)
+                node = res.register(self.list_level_2())
+            if node is None:
+                res.failure(None)
+                self.goto(start)
+                node = res.register(self.list_level_1())
+            if node == None:
+                error = True
+                self.goto(start)
+        res.failure(None)
+        if node_list == [None]:
+            return res.failure(output.InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "no list elements"))
+        return res.success(nodes.ListNode(node_list[1:]))
 
     def list_level_1(self):
         res = ParseResult()
         if not self.current_tok.type == tokenclass.TT_MINUS:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no starting dash"))
         self.advance()
         node = self.alphanummore()
         if node is None:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no text in heading"))
         text = node.text
         if not self.current_tok.type == tokenclass.TT_NEWLINE:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "no newline after heading"))
         self.advance()
-        return nodes.ListLevel1Node(text)
+        return res.success(nodes.ListLevel1Node(text))
         
     def list_level_2(self):
         res = ParseResult()
         if not self.current_tok.type == tokenclass.TT_IDENT:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no starting ident"))
         self.advance()
         res = ParseResult()
         if not self.current_tok.type == tokenclass.TT_MINUS:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no starting dash"))
         self.advance()
         node = self.alphanummore()
         if node is None:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no text in heading"))
         text = node.text
         if not self.current_tok.type == tokenclass.TT_NEWLINE:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "no newline after heading"))
         self.advance()
-        return nodes.ListLevel2Node(text)
+        return res.success(nodes.ListLevel2Node(text))
         
     def list_level_3(self):
         res = ParseResult()
         for _ in range(2):
             if not self.current_tok.type == tokenclass.TT_IDENT:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "no starting ident"))
             self.advance()
         res = ParseResult()
         if not self.current_tok.type == tokenclass.TT_MINUS:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no starting dash"))
         self.advance()
         node = self.alphanummore()
         if node is None:
-            return res.failure(errors.InvalidSyntaxError(
+            return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no text in heading"))
         text = node.text
         tok = self.current_tok
         if not tok.type == tokenclass.TT_NEWLINE:
-                return res.failure(errors.InvalidSyntaxError(
+                return res.failure(output.InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "no newline after heading"))
         self.advance()
-        return nodes.ListLevel3Node(text)
+        return res.success(nodes.ListLevel3Node(text))
         
 
     def alphanum(self):
@@ -526,47 +635,47 @@ class Parser:
                 found = True
                 text += "_"
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_PLUS:
+            elif self.current_tok.type is tokenclass.TT_PLUS:
                 found = True
                 text += "+"
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_COLON:
+            elif self.current_tok.type is tokenclass.TT_COLON:
                 found = True
                 text += ":"
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_EXCLAIM:
+            elif self.current_tok.type is tokenclass.TT_EXCLAIM:
                 found = True
                 text += "!"
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_MINUS:
+            elif self.current_tok.type is tokenclass.TT_MINUS:
                 found = True
                 text += "-"
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_LPAREN:
+            elif self.current_tok.type is tokenclass.TT_LPAREN:
                 found = True
                 text += "("
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_RPAREN:
+            elif self.current_tok.type is tokenclass.TT_RPAREN:
                 found = True
                 text += ")"
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_STAR:
+            elif self.current_tok.type is tokenclass.TT_STAR:
                 found = True
                 text += "*"
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_DOLLAR:
+            elif self.current_tok.type is tokenclass.TT_DOLLAR:
                 found = True
                 text += "$"
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_LBRACKET:
+            elif self.current_tok.type is tokenclass.TT_LBRACKET:
                 found = True
                 text += "["
                 self.advance()
-            if self.current_tok.type is tokenclass.TT_RBRACKET:
+            elif self.current_tok.type is tokenclass.TT_RBRACKET:
                 found = True
                 text += "]"
                 self.advance()
-            if self.current_tok.type in (tokenclass.TT_TEXT, tokenclass.TT_NUM):
+            elif self.current_tok.type in (tokenclass.TT_TEXT, tokenclass.TT_NUM):
                 found = True
                 text += self.current_tok.value
                 self.advance()
@@ -577,7 +686,7 @@ class Parser:
     def parse(self):
         res = self.body()
         if not res.error and self.current_tok.type != tokenclass.TT_EOF:
-            res.failure(errors.InvalidSyntaxError(
+            res.failure(output.InvalidSyntaxError(
                 self.current_tok.pos_start, self.current_tok.pos_end,
                 "Expected prop or text secction"))
         return res

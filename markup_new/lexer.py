@@ -1,10 +1,12 @@
-from markup_new import tokenclass, errors
+from markup_new import tokenclass, output
+from __main__ import *
+
 DIGITS = "1234567890"
 CHARS  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ%./;,\"'=^\\?&"
 class Lexer:
     def __init__(self, text, fn):
         self.text = text
-        self.pos = errors.Position(-1, 0, -1, fn, text)
+        self.pos = output.Position(-1, 0, -1, fn, text)
         self.current_char = None
         self.advance()
 
@@ -104,7 +106,7 @@ class Lexer:
         return tokenclass.Token(tokenclass.TT_NUM, num_str, pos_start, self.pos)
 
 def run(text, fn):
-    print(f"lexing: {fn}")
+    output.LexingLog(fn).print()
     lexer = Lexer(text, fn)
     tokens, error = lexer.make_tokens()
     if error: return None, error

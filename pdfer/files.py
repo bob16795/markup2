@@ -7,7 +7,6 @@ class pdf_file():
         self.pages = objs.pages_object()
         self.catalog.add_pages(self.pages)
         self.outlines = objs.outlines_object()
-        self.font = objs.font_object("/F1")
         self.level = [0, 0, 0]
         self.cpt = 0
         self.prt = 0
@@ -20,13 +19,32 @@ class pdf_file():
         self.media_box = [612, 792]
         self.title = ""
         self.author = ""
-        self._font_face = lib.font_face("times.ttf")
+        self._font_face = objs.font_object("times.ttf", "/F1")
         self.title_page = False
         self.index = {}
+        self.include_index = False
         self.toc = {}
+        self.include_toc = False
         self.header = ["{page_number}", "{part}", "{chapter}"]
         self.footer = ["{author}", "", "{title}"]
         self.add_page()
+
+    def add_table(self, table):
+        table.get_objs(self.font_face)
+        self.y -= table.height
+        if self.y < 100:
+            if self.current_column >= self._columns:
+                self.current_column = 1
+                self.add_page(text, size)
+            else:
+                self.current_column += 1
+                self.y = self.y_start
+            table.offset[1] = self.y
+            column_size = ((self.media_box[0]-200) - (self.column_spacing * (self.columns - 1))) / self.columns
+            col_x = ((column_size + self.column_spacing) * (self.current_column - 1)) + 100 
+            table.offset[0] = col_x
+            self.y -= table.height - 12
+        self.pages.pages[-1].append(table)
 
     def add_header_footer(self, page, offset):
         chapter = ["", 0]
@@ -83,10 +101,10 @@ class pdf_file():
         self.y = 692
         self.y_start = 692
         self.current_column = 1
-        page = objs.page_object(self.font)
+        page = objs.page_object(self.font_face)
         self.pages.append(page)
         if (len(self.pages.pages) % 2 == 0) == odd:
-            page = objs.page_object(self.font)
+            page = objs.page_object(self.font_face)
             self.pages.append(page)
         if text:
             self.add_text(text, size)
@@ -105,7 +123,7 @@ class pdf_file():
         line = False
         if level > 0:
             self.level[level-1] += 1
-            for i in range(level + 1, 2):
+            for i in range(level, 2):
                 self.level[i] = 0
             levels = [i.__str__() for i in self.level]
             number = ".".join(levels[::1]) + " "
@@ -157,7 +175,7 @@ class pdf_file():
 
     @font_face.setter
     def font_face(self, value):
-        self._font_face = lib.font_face(value)
+        self._font_face =  objs.font_object(value, "/F1")
 
     @property
     def columns(self):
@@ -245,14 +263,17 @@ class pdf_file():
                     self.add_text(' '.join(overfill)[:-1].replace("\\(", "(").replace("\\)", ")").replace("\\\\", "\\"), size)
 
     def finish(self):
-        toc_length = self.get_toc_size()
-        toc_file = self.make_toc(toc_length)
-        self.pages.pages[0:0] = toc_file.pages.pages
-        self.add_index(toc_length)
-        title_pos = (self.media_box[0] - lib.get_text_size(self.title, 12, self.font_face)) / 2
+        toc_length = 0
+        if self.include_toc:
+            toc_length = self.get_toc_size()
+            toc_file = self.make_toc(toc_length)
+            self.pages.pages[0:0] = toc_file.pages.pages
+        if self.include_index:
+            self.add_index(toc_length)
         for i, page in enumerate(self.pages.pages):
             self.add_header_footer(i, toc_length)
         if self.title_page:
+            title_pos = (self.media_box[0] - lib.get_text_size(self.title, 12, self.font_face)) / 2
             self.make_title_page()
 
     def make_title_page(self):
@@ -300,8 +321,12 @@ class pdf_file():
         for page in self.pages.pages:
             objects_ordered.append(page)
             for text in page.text_objs:
-                objects_ordered.append(text)
-        objects_ordered.append(self.font)   
+                if type(text) is objs.table_object:
+                    for obj in text.get_objs(self.font_face):
+                        objects_ordered.append(obj)
+                else:
+                    objects_ordered.append(text)
+        objects_ordered.append(self.font_face)   
         return objects_ordered
 
     def __str__(self):
