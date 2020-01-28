@@ -73,10 +73,17 @@ class Interpreter:
         return file
 
     def Visit_TextCommentNode(self, node, file, props, text, wd):
-        if node.text[:4] == "Inc:":
+        if node.type == "If":
+            node_prop = node.text.split("|")[0].strip(" ")
+            node_prop = node.text.split("|")[0].strip(" ")
+            if type == None:
+                text = "IGNORE"
+        if node.type == "EndIf":
+            text = ""
+        if node.type == "Inc":
             slave_start = props["slave"]
             props["slave"] = "True"
-            pattern = node.text[4:]
+            pattern = node.text
             pattern = pattern.strip(" ")
             if pattern[0] == "/":
                 path = "/" + "/".join(pattern.split("/")[:-1])

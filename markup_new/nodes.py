@@ -75,7 +75,8 @@ class TableSplitNode:
         return f'END PARAGRAPH'
 
 class TextCommentNode:
-    def __init__(self, text, start_pos, end_pos):
+    def __init__(self, type, text, start_pos, end_pos):
+        self.type = type
         self.text = text
         self.start_pos = start_pos
         self.end_pos = end_pos
