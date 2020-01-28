@@ -1,4 +1,5 @@
 from pdfer import files, objects
+from pathlib import Path
 from markup_new import lexer, parser, output
 from __main__ import *
 import os
@@ -32,15 +33,17 @@ class Interpreter:
         return props, file
 
     def Visit_TextLineNode(self, node, file, props, text, wd):
-        line = node.text
-        for key in props:
-            line = line.replace("()"+key+"()", props[key])
-        text += line + " "
+        if text != None:
+            line = node.text
+            for key in props:
+                line = line.replace("()"+key+"()", props[key])
+            text += line + " "
         return text, file
 
     def Visit_TextParEndNode(self, node, file, props, text, wd):
-        file.add_text(text[:-1], 12)
-        text = ""
+        if text != None:
+            file.add_text(text[:-1], 12)
+            text = ""
         return text, file
 
     def Visit_Heading1Node(self, node, file, props, text, wd):
@@ -48,16 +51,19 @@ class Interpreter:
         return text, file
 
     def Visit_Heading2Node(self, node, file, props, text, wd):
-        file.add_heading(node.text, 2)
+        if text != None:
+            file.add_heading(node.text, 2)
         return text, file
 
     def Visit_Heading3Node(self, node, file, props, text, wd):
-        file.add_heading(node.text, 3)
+        if text != None:
+            file.add_heading(node.text, 3)
         return text, file
 
     def Visit_ListNode(self, node, file, props, text, wd):
-        for i in node.nodes:
-            file = self.visit(i, file=file, props=props)
+        if text != None:
+            for i in node.nodes:
+                file = self.visit(i, file=file, props=props)
         return text, file
 
     def Visit_ListLevel1Node(self, node, file, props):
@@ -73,17 +79,23 @@ class Interpreter:
         return file
 
     def Visit_TextCommentNode(self, node, file, props, text, wd):
-        if node.type == "If":
-            node_prop = node.text.split("|")[0].strip(" ")
-            node_prop = node.text.split("|")[0].strip(" ")
-            if type == None:
-                text = "IGNORE"
-        if node.type == "EndIf":
+        node_type = node.text.split(":")[0].strip(" ")
+        node_text = ":".join(node.text.split(":")[1:]).strip(" ")
+        if node_type == "If":
+            node_prop = node_text.split("=")[0].strip(" ")
+            node_cond = "True"
+            if node_prop in props:
+                if "=" in node_text:
+                    node_cond = node_text.split("=")[1].strip(" ")
+                if not props[node_prop] == node_cond:
+                    text = None
+            else:
+        if node_type == "EndIf":
             text = ""
-        if node.type == "Inc":
+        if node_type == "Inc":
             slave_start = props["slave"]
             props["slave"] = "True"
-            pattern = node.text
+            pattern = node_text
             pattern = pattern.strip(" ")
             if pattern[0] == "/":
                 path = "/" + "/".join(pattern.split("/")[:-1])
@@ -97,7 +109,7 @@ class Interpreter:
                     output.IncludeLog(f).print()
                     if f == props["file_name"]:
                         output.CircularRefError(node.start_pos, node.end_pos, "'" + f + "'").print()
-                    with open(path + "/" +f, "r") as f:
+                    with open(Path(path)/f, "r") as f:
                         tokens, error = lexer.run(f.read(), f.name)
                         if error:
                             error.print()
@@ -160,11 +172,12 @@ class Interpreter:
             if prop == "index":
                 file.include_index = (value == "True")
             if prop == "output":
-                path = wd  + "/" + "/".join(value.split("/")[:-1])
-                if path and not os.path.isdir(path):
-                    output.NoSuchPathError(i.start_pos, i.end_pos, "'"+ path + "'").print()
-                value = path + "/" + value.split("/")[-1]
-            props[prop] = value
+                path = Path(wd) / Path("/".join(value.split("/")[:-1]))
+                if not os.path.isdir(path):
+                    output.NoSuchPathError(i.start_pos, i.end_pos, "'" + path + "'").print()
+                value = Path(path) / Path(value.split("/")[-1])
+                value = value
+            props[prop] = str(value)
         return props, file
 
     def Visit_PropDivNode(self, node, props):

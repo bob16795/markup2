@@ -48,6 +48,7 @@ class multi_tasker():
     def compile(file_name, wd, tree=False, token_tree=False):
         from markup_new import lexer, parser, interpreter
         with open(wd + "/" + file_name, "r") as f:
+            output.LexingLog(wd + "/" + file_name).print()
             tokens, error = lexer.run(f.read(), file_name)
             if tokens is None:
                 error.print()
@@ -56,7 +57,7 @@ class multi_tasker():
                 print(tokens)
                 quit()
             
-            output.ParsingLog(file_name).print()
+            output.ParsingLog(wd + "/" + file_name).print()
             parser_obj = parser.Parser(tokens)
             ast = parser_obj.parse()
 

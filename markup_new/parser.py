@@ -257,36 +257,31 @@ class Parser:
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no exclaim starting comment"))
         text = ""
-        comment_type = ""
         colon = False
         self.advance()
         while not self.current_tok.type in (tokenclass.TT_NEWLINE, tokenclass.TT_EOF):
-            if not colon:
-                if self.current_tok.value != None:
-                    comment_type += self.current_tok.value
-                elif self.current_tok.type == tokenclass.TT_COLON:
-                    colon = True
-            else:
-                if self.current_tok.value != None:
-                    text += self.current_tok.value
-                elif self.current_tok.type == tokenclass.TT_MINUS:
-                    text += "-"
-                elif self.current_tok.type == tokenclass.TT_DOLLAR:
-                    text += "$"
-                elif self.current_tok.type == tokenclass.TT_STAR:
-                    text += "*"
-                elif self.current_tok.type == tokenclass.TT_EXCLAIM:
-                    text += "!"
-                elif self.current_tok.type == tokenclass.TT_UNDERSCORE:
-                    text += "_"
-                elif self.current_tok.type == tokenclass.TT_LPAREN:
-                    text += "("
-                elif self.current_tok.type == tokenclass.TT_RPAREN:
-                    text += ")"
+            if self.current_tok.value != None:
+                text += self.current_tok.value
+            elif self.current_tok.type == tokenclass.TT_MINUS:
+                text += "-"
+            elif self.current_tok.type == tokenclass.TT_COLON:
+                text += ":"
+            elif self.current_tok.type == tokenclass.TT_DOLLAR:
+                text += "$"
+            elif self.current_tok.type == tokenclass.TT_STAR:
+                text += "*"
+            elif self.current_tok.type == tokenclass.TT_EXCLAIM:
+                text += "!"
+            elif self.current_tok.type == tokenclass.TT_UNDERSCORE:
+                text += "_"
+            elif self.current_tok.type == tokenclass.TT_LPAREN:
+                text += "("
+            elif self.current_tok.type == tokenclass.TT_RPAREN:
+                text += ")"
             self.advance()
         end = self.current_tok.pos_start
         self.advance()
-        return res.success(nodes.TextCommentNode(comment_type, text, start, end))
+        return res.success(nodes.TextCommentNode(text, start, end))
 
     def text_heading(self):
         res = ParseResult()

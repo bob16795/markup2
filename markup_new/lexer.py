@@ -106,7 +106,6 @@ class Lexer:
         return tokenclass.Token(tokenclass.TT_NUM, num_str, pos_start, self.pos)
 
 def run(text, fn):
-    output.LexingLog(fn).print()
     lexer = Lexer(text, fn)
     tokens, error = lexer.make_tokens()
     if error: return None, error
