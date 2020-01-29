@@ -2,7 +2,7 @@ from markup_new import tokenclass, output
 from __main__ import *
 
 DIGITS = "1234567890"
-CHARS  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ%./;,\"'=^\\?&"
+CHARS  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ%./;,\"'=^\\?&P{}"
 class Lexer:
     def __init__(self, text, fn):
         self.text = text

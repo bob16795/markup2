@@ -239,6 +239,7 @@ class Parser:
         node = res.register(self.table_top())
         if res.error:
             return res.failure(res.error)
+        top = node
         while node is not None:
             rows.append(node)
             node = res.register(self.table_row())
@@ -247,7 +248,7 @@ class Parser:
             return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "not enough rows in table"))
-        return res.success(nodes.TableNode(rows))
+        return res.success(nodes.TableNode(top, rows))
 
     def text_comment(self):
         start = self.current_tok.pos_start
@@ -312,7 +313,7 @@ class Parser:
             return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "table row has no split"))
-        return res.success(nodes.TableHeadingNode(heading.columns))
+        return res.success(nodes.TableHeadingNode(heading.columns, split.ratio))
     
     def table_row(self):
         res = ParseResult()
@@ -351,13 +352,18 @@ class Parser:
         res = ParseResult()
         error = False
         text = []
+        ratio = []
+        col = 0
         while not error:
             error = True
             if self.current_tok.type is tokenclass.TT_BAR:
                 self.advance()
+                col += 1
+                ratio.append(0)
                 while self.current_tok.type is tokenclass.TT_MINUS:
                     self.advance()
                     error = False
+                    ratio[col-1] += 1
                 if error is True:
                     self.devance(1)
         if not self.current_tok.type is tokenclass.TT_BAR:
@@ -372,7 +378,7 @@ class Parser:
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "no newline after heading"))
         self.advance()
-        return res.success(nodes.TableSplitNode())
+        return res.success(nodes.TableSplitNode(ratio))
 
 
     def heading_1(self):

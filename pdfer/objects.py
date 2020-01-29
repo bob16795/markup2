@@ -97,12 +97,13 @@ class text_object():
         return text
 
 class table_object():
-    def __init__(self, y, width, offset_x, offset_y, heading):
+    def __init__(self, y, width, offset_x, offset_y, heading, ratio):
         self.data = []
         self.heading = []
         self.offset = [offset_x, offset_y]
         self.dims = [y, 0]
         self.width = width
+        self.ratio = ratio[:-1]
 
     def append(self, row):
         self.dims[1] += 1
@@ -111,12 +112,12 @@ class table_object():
     def get_objs(self, font_face):
         objs = []
         line_y = 0
-        cell_width = self.width / self.dims[0]
         for row in self.data:
             max_row_y = 0
             objs.append(line_object((self.offset[0]+self.width, self.offset[0]), (self.offset[1]-line_y, self.offset[1]-line_y)))
             for i, cell in enumerate(row):
-                cell_x = self.offset[0] + (cell_width * (i))
+                cell_width = self.width / sum(self.ratio) * self.ratio[i]
+                cell_x = self.offset[0] + (self.width / sum(self.ratio) * sum(self.ratio[:i]))
                 text_obj = text_object()
                 text_obj.append(f"BT\n{12 + 2.4} TL\n/F1 {12} Tf\n{cell_x + 1} {self.offset[1] +3.4 - line_y} Td\n")
                 line = ""
@@ -139,7 +140,7 @@ class table_object():
                 if line_y_temp > max_row_y:
                     max_row_y = line_y_temp
             for i in range(self.dims[0]):
-                x = self.offset[0] + (cell_width * i)
+                x =  self.offset[0] + (self.width / sum(self.ratio) * sum(self.ratio[:i]))
                 objs.append(line_object((x+.5, x+.5), (self.offset[1]-line_y, self.offset[1]-line_y-max_row_y - 1)))
             objs.append(line_object((self.offset[0]+self.width - (.5), self.offset[0]+self.width - (.5)), (self.offset[1]-line_y, self.offset[1]-line_y-max_row_y - 1)))
             line_y += max_row_y + 1

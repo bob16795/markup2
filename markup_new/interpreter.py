@@ -89,7 +89,6 @@ class Interpreter:
                     node_cond = node_text.split("=")[1].strip(" ")
                 if not props[node_prop] == node_cond:
                     text = None
-            else:
         if node_type == "EndIf":
             text = ""
         if node_type == "Inc":
@@ -139,7 +138,7 @@ class Interpreter:
         return text, file
 
     def Visit_TableNode(self, node, file, props, text, wd):
-        file, table, width = self.visit(node.rows[0], file=file)
+        file, table, width = self.visit(node.heading, file=file)
         for row in node.rows[1:]:
             table, row_width = self.visit(row, file=file, table=table)
             if width != row_width:
@@ -151,7 +150,7 @@ class Interpreter:
         file.add_space(12)
         col_size = ((file.media_box[0]-200) - (file.column_spacing * (file.columns - 1))) / file.columns
         col_x = ((col_size + file.column_spacing) * (file.current_column - 1)) + 100 
-        table = objects.table_object(len(node.columns), col_size, col_x, file.y, node.columns)
+        table = objects.table_object(len(node.columns), col_size, col_x, file.y, node.columns, node.ratio)
         return file, table, len(node.columns)
 
     def Visit_TableRowNode(self, node, file, table):
@@ -163,15 +162,19 @@ class Interpreter:
             prop, value = self.visit(i, props=props)
             if prop == "font_face":
                 file.font_face = value
-            if prop == "title":
+            elif prop == "title":
                 file.title = value
-            if prop == "title_page":
+            elif prop == "title_page":
                 file.title_page = (value == "True")
-            if prop == "toc":
+            elif prop == "toc":
                 file.include_toc = (value == "True")
-            if prop == "index":
+            elif prop == "index":
                 file.include_index = (value == "True")
-            if prop == "output":
+            elif prop == "header":
+                file.header = value.split(",")
+            elif prop == "footer":
+                file.footer =  value.split(",")
+            elif prop == "output":
                 path = Path(wd) / Path("/".join(value.split("/")[:-1]))
                 if not os.path.isdir(path):
                     output.NoSuchPathError(i.start_pos, i.end_pos, "'" + path + "'").print()

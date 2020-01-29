@@ -68,8 +68,9 @@ class TextParEndNode:
         return f'END PARAGRAPH'
 
 class TableSplitNode:
-    def __init__(self):
-        pass
+    def __init__(self, ratio):
+        self.ratio = ratio
+        self.total = sum(ratio)
 
     def __repr__(self):
         return f'END PARAGRAPH'
@@ -162,9 +163,10 @@ class TableRowNode:
         return string[:-1]
 
 class TableNode:
-    def __init__(self, rows):
+    def __init__(self, heading, rows):
         self.rows = rows
-
+        self.heading = heading
+        
     def __repr__(self):
         string = ""
         for i in self.rows:
@@ -173,8 +175,10 @@ class TableNode:
         return string[:-1]
 
 class TableHeadingNode:
-    def __init__(self, columns):
+    def __init__(self, columns, ratio):
         self.columns = columns
+        self.ratio = ratio
+        self.total = sum(ratio)
 
     def __repr__(self):
         string = ""
