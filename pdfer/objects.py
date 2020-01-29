@@ -170,15 +170,25 @@ class font_object():
     << /Type /Font
     /Subtype /Type1
     /Name /F1
+    /FontFile2 10 0 R 
     /BaseFont /Times 
     /Encoding /MacRomanEncoding
     >>
+/BaseFont /Arial
+/FirstChar 32
+/LastChar 126
+/Subtype /TrueType
+/FontDescriptor 8 0 R
+/Widths 59 0 R
+/Type /Font
     """
 
     def __init__(self, font_face, name="F1"):
+        self.font_file = font_file_object(font_face)
         self.dict = {"/Type": "/Font",
-                     "/Subtype": "/Type1",
+                     "/Subtype": "/TrueType",
                      "/Name": name,
+                     "/FontFile2": "%%" + self.font_file.ident() + "%%", 
                      "/BaseFont": "/Times",
                      "/Encoding": "/MacRomanEncoding"}
         try:
@@ -201,4 +211,23 @@ class font_object():
         for i in self.dict:
             text += i.__str__() + " " + self.dict[i].__str__() + "\n"
         text += f">>\n"
+        return text
+
+class font_file_object():
+    """
+    <<
+    /Length
+    >>
+    """
+
+    def __init__(self, file):
+        self.stream = open(file, "rb").read()
+        self.length = len(self.stream)
+
+    def ident(self):
+        return hashlib.md5(self.__str__().encode('utf-8')).hexdigest()
+
+    def __str__(self):
+        text = f"<</Length {self.length}\n/Length1 {self.length}>>\n"
+        text += f"stream\n{self.stream}\nendstream\n"
         return text

@@ -175,6 +175,7 @@ class pdf_file():
 
     @font_face.setter
     def font_face(self, value):
+        print(value)
         self._font_face =  objs.font_object(value, "/F1")
 
     @property
@@ -327,6 +328,7 @@ class pdf_file():
                 else:
                     objects_ordered.append(text)
         objects_ordered.append(self.font_face)   
+        objects_ordered.append(self.font_face.font_file)
         return objects_ordered
 
     def __str__(self):
