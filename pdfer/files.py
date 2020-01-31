@@ -328,7 +328,7 @@ class pdf_file():
                 else:
                     objects_ordered.append(text)
         objects_ordered.append(self.font_face)   
-        objects_ordered.append(self.font_face.font_file)
+        #objects_ordered.append(self.font_face.font_file)
         return objects_ordered
 
     def __str__(self):

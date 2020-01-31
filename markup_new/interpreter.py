@@ -30,6 +30,8 @@ class Interpreter:
         text = ""
         for i in node.nodes:
             text, file = self.visit(i, file=file, props=props, text=text, wd = wd)
+        file.add_text(text[:-1], 12)
+        text = ""
         return props, file
 
     def Visit_TextLineNode(self, node, file, props, text, wd):
@@ -47,16 +49,23 @@ class Interpreter:
         return text, file
 
     def Visit_Heading1Node(self, node, file, props, text, wd):
-        file.add_heading(node.text, 1)
+        if text != None:
+            file.add_text(text[:-1], 12)
+            text = ""
+            file.add_heading(node.text, 1)
         return text, file
 
     def Visit_Heading2Node(self, node, file, props, text, wd):
         if text != None:
+            file.add_text(text[:-1], 12)
+            text = ""
             file.add_heading(node.text, 2)
         return text, file
 
     def Visit_Heading3Node(self, node, file, props, text, wd):
         if text != None:
+            file.add_text(text[:-1], 12)
+            text = ""
             file.add_heading(node.text, 3)
         return text, file
 
@@ -135,6 +144,8 @@ class Interpreter:
             file.add_heading(node.to, -1)
         elif node.name == "PRT":
             file.add_heading(node.to, -2)
+        elif node.name == "PAG":
+            file.add_page()
         return text, file
 
     def Visit_TableNode(self, node, file, props, text, wd):

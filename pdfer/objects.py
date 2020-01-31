@@ -188,7 +188,7 @@ class font_object():
         self.dict = {"/Type": "/Font",
                      "/Subtype": "/TrueType",
                      "/Name": name,
-                     "/FontFile2": "%%" + self.font_file.ident() + "%%", 
+                     #"/FontFile2": "%%" + self.font_file.ident() + "%%", 
                      "/BaseFont": "/Times",
                      "/Encoding": "/MacRomanEncoding"}
         try:
