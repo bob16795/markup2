@@ -2,6 +2,8 @@ from markup_new import lexer, parser, interpreter, output
 import click
 import os, re
 import threading
+import click_completion
+click_completion.init()
 
 @click.command()
 @click.argument('files', nargs=-1, required=True)
@@ -80,8 +82,8 @@ class multi_tasker():
                 else:
                     file.finish()
                     output.WritingLog(output_file).print()
-                    with open(output_file, "w+") as out:
-                        out.write(file.__str__())
+                    with open(output_file, "wb+") as out:
+                        out.write(file.__str__().encode())
             if use != "":
                 mt = multi_tasker()
                 for pattern in use.split(";"):

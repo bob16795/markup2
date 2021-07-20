@@ -2,7 +2,7 @@ from markup_new import tokenclass, output
 from __main__ import *
 
 DIGITS = "1234567890"
-CHARS  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ%./;,\"'=^\\?&P{}"
+CHARS  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ%./;,\"'=^\\?&P"
 class Lexer:
     def __init__(self, text, fn):
         self.text = text
@@ -21,14 +21,14 @@ class Lexer:
             if self.current_char in '\t':
                 tokens.append(tokenclass.Token(tokenclass.TT_IDENT, pos_start=self.pos))
                 self.advance()
-            elif self.current_char in ' ':
-                start = self.pos
-                self.advance()
-                if self.current_char in ' ':
-                    tokens.append(tokenclass.Token(tokenclass.TT_IDENT, pos_start=start, pos_end=self.pos))
-                    self.advance()
-                else:
-                    tokens.append(self.make_text())
+            # elif self.current_char in ' ':
+            #     start = self.pos
+            #     self.advance()
+            #     if self.current_char in ' ':
+            #         tokens.append(tokenclass.Token(tokenclass.TT_IDENT, pos_start=start, pos_end=self.pos))
+            #         self.advance()
+            #     else:
+            #         tokens.append(self.make_text())
             elif self.current_char in '+':
                 tokens.append(tokenclass.Token(tokenclass.TT_PLUS, pos_start=self.pos))
                 self.advance()
@@ -53,6 +53,18 @@ class Lexer:
             elif self.current_char in '\n':
                 tokens.append(tokenclass.Token(tokenclass.TT_NEWLINE, pos_start=self.pos))
                 self.advance()
+                while True and self.current_char != None:
+                    if self.current_char in ' ':
+                        self.advance()
+                        if self.current_char in ' ':
+                            tokens.append(tokenclass.Token(tokenclass.TT_IDENT, pos_start=self.pos))
+                            self.advance()
+                        else:
+                            tokens.append(tokenclass.Token(tokenclass.TT_TEXT, " ", pos_start=self.pos))
+                            self.advance()
+                            break
+                    else:
+                        break
             elif self.current_char in '(':
                 tokens.append(tokenclass.Token(tokenclass.TT_LPAREN, pos_start=self.pos))
                 self.advance()
@@ -71,11 +83,24 @@ class Lexer:
             elif self.current_char in ']':
                 tokens.append(tokenclass.Token(tokenclass.TT_RBRACKET, pos_start=self.pos))
                 self.advance()
+            elif self.current_char in '{':
+                tokens.append(tokenclass.Token(tokenclass.TT_LBRACE, pos_start=self.pos))
+                self.advance()
+            elif self.current_char in '}':
+                tokens.append(tokenclass.Token(tokenclass.TT_RBRACE, pos_start=self.pos))
+                self.advance()
             elif self.current_char in '$':
                 tokens.append(tokenclass.Token(tokenclass.TT_DOLLAR, pos_start=self.pos))
                 self.advance()
             elif self.current_char in '#':
                 tokens.append(tokenclass.Token(tokenclass.TT_HASH, pos_start=self.pos))
+                self.advance()
+            elif self.current_char in '\\':
+                self.advance()
+                tokens.append(tokenclass.Token(tokenclass.TT_TEXT, self.current_char,  pos_start=self.pos))
+                self.advance()
+            elif self.current_char in ' ':
+                tokens.append(tokenclass.Token(tokenclass.TT_TEXT, " ",  pos_start=self.pos))
                 self.advance()
             elif self.current_char in CHARS:
                 tokens.append(self.make_text())
@@ -100,7 +125,7 @@ class Lexer:
     def make_number(self):
         num_str = ''
         pos_start = self.pos.copy()
-        while self.current_char != None and self.current_char in DIGITS + ".":
+        while self.current_char != None and self.current_char in DIGITS + ". ":
             num_str += self.current_char
             self.advance()
         return tokenclass.Token(tokenclass.TT_NUM, num_str, pos_start, self.pos)

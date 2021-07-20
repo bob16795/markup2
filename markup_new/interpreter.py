@@ -30,7 +30,7 @@ class Interpreter:
         text = ""
         for i in node.nodes:
             text, file = self.visit(i, file=file, props=props, text=text, wd = wd)
-        file.add_text(text[:-1], 12)
+        file.add_text(text, 12)
         text = ""
         return props, file
 
@@ -39,32 +39,32 @@ class Interpreter:
             line = node.text
             for key in props:
                 line = line.replace("()"+key+"()", props[key])
-            text += line + " "
+            text += " " + line
         return text, file
 
     def Visit_TextParEndNode(self, node, file, props, text, wd):
         if text != None:
-            file.add_text(text[:-1], 12)
+            file.add_text(text[1:], 12)
             text = ""
         return text, file
 
     def Visit_Heading1Node(self, node, file, props, text, wd):
         if text != None:
-            file.add_text(text[:-1], 12)
+            file.add_text(text[1:], 12)
             text = ""
             file.add_heading(node.text, 1)
         return text, file
 
     def Visit_Heading2Node(self, node, file, props, text, wd):
         if text != None:
-            file.add_text(text[:-1], 12)
+            file.add_text(text[1:], 12)
             text = ""
             file.add_heading(node.text, 2)
         return text, file
 
     def Visit_Heading3Node(self, node, file, props, text, wd):
         if text != None:
-            file.add_text(text[:-1], 12)
+            file.add_text(text[1:], 12)
             text = ""
             file.add_heading(node.text, 3)
         return text, file
@@ -97,6 +97,8 @@ class Interpreter:
                 if "=" in node_text:
                     node_cond = node_text.split("=")[1].strip(" ")
                 if not props[node_prop] == node_cond:
+                    file.add_text(text[1:], 12)
+                    text = ""
                     text = None
         if node_type == "EndIf":
             text = ""
@@ -131,7 +133,7 @@ class Interpreter:
                         for i in ast.node.nodes:
                             props, file = self.visit(i, file=file, props = props, wd = path)
             if add == 0:
-                print(warnings.NoFileIncludedWarning(node.start_pos, node.end_pos, "'"+ pattern + "@" + path + "'").as_string())
+                print(output.NoFileIncludedWarning(node.start_pos, node.end_pos, "'"+ pattern + "@" + path + "'").as_string())
             props["slave"] = slave_start
         return text, file
 
@@ -146,6 +148,8 @@ class Interpreter:
             file.add_heading(node.to, -2)
         elif node.name == "PAG":
             file.add_page()
+        elif node.name == "LIN":
+            file.add_line(30, 30)
         return text, file
 
     def Visit_TableNode(self, node, file, props, text, wd):

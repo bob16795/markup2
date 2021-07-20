@@ -1,7 +1,8 @@
 from pdfer import lib
-from fontTools.ttLib import TTFont
+from fontTools.ttLib import TTFont, sfnt
 from fontTools.ttLib.tables._c_m_a_p import CmapSubtable
 
+import zlib
 import hashlib
 
 class catalog_object():
@@ -167,30 +168,30 @@ class line_object():
 
 class font_object():
     """
-    << /Type /Font
-    /Subtype /Type1
-    /Name /F1
-    /FontFile2 10 0 R 
-    /BaseFont /Times 
-    /Encoding /MacRomanEncoding
+    <<
+    /Type/Font
+    /Subtype/TrueType
+    /Name/F1
+    /BaseFont/BCDEEE+Calibri
+    /Encoding/WinAnsiEncoding
+    /FontDescriptor 6 0 R
+    /FirstChar 32
+    /LastChar 32
+    /Widths 18 0 R
     >>
-/BaseFont /Arial
-/FirstChar 32
-/LastChar 126
-/Subtype /TrueType
-/FontDescriptor 8 0 R
-/Widths 59 0 R
-/Type /Font
     """
-
     def __init__(self, font_face, name="F1"):
-        self.font_file = font_file_object(font_face)
+        font = TTFont(font_face)
+        face_name = font["name"].getName(1, 3, 1).string.replace(b'\x0a', b'').decode(errors="ignore")
+        self.font_descriptor = font_descriptor_object(font_face, name)
         self.dict = {"/Type": "/Font",
                      "/Subtype": "/TrueType",
                      "/Name": name,
-                     #"/FontFile2": "%%" + self.font_file.ident() + "%%", 
-                     "/BaseFont": "/Times",
-                     "/Encoding": "/MacRomanEncoding"}
+                     "/FirstChar": 0,
+                     "/LastChar": 255,
+                     "/BaseFont": "/" +face_name[1::2],
+                     "/Encoding": "/MacRomanEncoding",
+                     "/FontDescriptor": "%%" + self.font_descriptor.ident() + "%%"}
         try:
             self.font = TTFont(font_face)
             self.cmap = self.font['cmap']
@@ -207,7 +208,58 @@ class font_object():
         return hashlib.md5(self.__str__().encode('utf-8')).hexdigest()
 
     def __str__(self):
-        text = "<</Type /Catalog\n"
+        text = "<<"
+        for i in self.dict:
+            text += i.__str__() + " " + self.dict[i].__str__() + "\n"
+        text += f">>\n"
+        return text
+
+class font_descriptor_object():
+    """
+    <<
+    /Type/FontDescriptor
+    /FontName/BCDEEE+Calibri
+    /Flags 32
+    /ItalicAngle 0
+    /Ascent 750
+    /Descent -250
+    /CapHeight 750
+    /AvgWidth 521
+    /MaxWidth 1743
+    /FontWeight 400
+    /XHeight 250
+    /StemV 52
+    /FontBBox[ -503 -250 1240 750]
+    /FontFile2 19 0 R
+    >>
+    """
+    def __init__(self, font_face, name="F1"):
+        font = TTFont(font_face)
+        self.name = font["name"].getName(1, 3, 1).string.replace(b'\x0a', b'').decode(errors="ignore")
+
+        self.font_file = font_file_object(font_face)
+        self.dict = {"/Type": "/FontDescriptor",
+                     "/FontName": f"/{self.name[1::2]}",
+                     "/ItalicAngle": "0",
+                     "/Ascent": "750",
+                     "/Descent": "-250",
+                     "/CapHeight": "750",
+                     "/AvgWidth": "521",
+                     "/MaxWidth": "1743",
+                     "/FontWeight": "400",
+                     "/XHeight": "250",
+                     "/StemV": "52",
+                     "/FontBBox": "[ -503 -250 1240 750]",
+                     "/FontFile2": "%%" + self.font_file.ident() + "%%"}
+
+    def add_pages(self, pages):
+        self.dict["/Pages"] = pages
+
+    def ident(self):
+        return hashlib.md5(self.__str__().encode('utf-8')).hexdigest()
+
+    def __str__(self):
+        text = "<<"
         for i in self.dict:
             text += i.__str__() + " " + self.dict[i].__str__() + "\n"
         text += f">>\n"
@@ -221,13 +273,15 @@ class font_file_object():
     """
 
     def __init__(self, file):
-        self.stream = open(file, "rb").read()
-        self.length = len(self.stream)
+        self.stream = open(file, "r", encoding="mac-roman").read()
+        self.length1 = len(self.stream)+1
+        #self.stream = zlib.compress(self.stream.encode("mac-roman")).decode("mac-roman")
+        self.length = len(self.stream)+1
 
     def ident(self):
         return hashlib.md5(self.__str__().encode('utf-8')).hexdigest()
 
     def __str__(self):
-        text = f"<</Length {self.length}\n/Length1 {self.length}>>\n"
+        text = f"<<\n/Length {self.length}\n/Length1 {self.length1}>>\n"
         text += f"stream\n{self.stream}\nendstream\n"
         return text

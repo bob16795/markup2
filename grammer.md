@@ -35,4 +35,7 @@ prop_line    : [[[EXCLAIM]TEXT BAR]TEXT COLON TEXT]NEWLINE
 # Todo
 
 ```
+equation     : DOLLAR alphanummore DOLLAR
+bold         : UNDERSCORE alphanummore UNDERSCORE
+emph         : STAR alphanummore STAR
 ```

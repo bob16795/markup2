@@ -140,7 +140,7 @@ class Parser:
         if node == None:
             return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
-                    "Start of Prop Section Expected"))
+                   "Start of Prop Section Expected"))
         node_list = []
         while node != None:
             node_list.append(node)
@@ -206,7 +206,7 @@ class Parser:
         res = ParseResult()
         if self.current_tok.type in (tokenclass.TT_NEWLINE, tokenclass.TT_EOF):
             self.advance()
-            while self.current_tok.type in (tokenclass.TT_NEWLINE):
+            while self.current_tok.type is (tokenclass.TT_NEWLINE):
                 self.advance()
             return res.success(nodes.TextParEndNode())
         return res.failure(output.InvalidSyntaxError(
@@ -226,11 +226,11 @@ class Parser:
             return res.failure(output.InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no Text in line"))
-        if not self.current_tok.type in (tokenclass.TT_NEWLINE, tokenclass.TT_EOF):
-            return res.failure(output.InvalidSyntaxError(
-                    self.current_tok.pos_start, self.current_tok.pos_end,
-                    "no end of line after text"))
-        self.advance()
+        # if not self.current_tok.type in (tokenclass.TT_NEWLINE, tokenclass.TT_EOF):
+        #     return res.failure(output.InvalidSyntaxError(
+        #             self.current_tok.pos_start, self.current_tok.pos_end,
+        #             "no end of line after text"))
+        # self.advance()
         return res.success(nodes.TextLineNode(text))
 
     def text_table(self):
@@ -258,7 +258,6 @@ class Parser:
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "no exclaim starting comment"))
         text = ""
-        colon = False
         self.advance()
         while not self.current_tok.type in (tokenclass.TT_NEWLINE, tokenclass.TT_EOF):
             if self.current_tok.value != None:
@@ -613,6 +612,14 @@ class Parser:
                 found = True
                 text += ")"
                 self.advance()
+            if self.current_tok.type is tokenclass.TT_LBRACE:
+                found = True
+                text += "{"
+                self.advance()
+            if self.current_tok.type is tokenclass.TT_RBRACE:
+                found = True
+                text += "}"
+                self.advance()
             if self.current_tok.type is tokenclass.TT_STAR:
                 found = True
                 text += "*"
@@ -665,6 +672,14 @@ class Parser:
             elif self.current_tok.type is tokenclass.TT_RPAREN:
                 found = True
                 text += ")"
+                self.advance()
+            if self.current_tok.type is tokenclass.TT_LBRACE:
+                found = True
+                text += "{"
+                self.advance()
+            if self.current_tok.type is tokenclass.TT_RBRACE:
+                found = True
+                text += "}"
                 self.advance()
             elif self.current_tok.type is tokenclass.TT_STAR:
                 found = True

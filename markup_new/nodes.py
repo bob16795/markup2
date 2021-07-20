@@ -17,7 +17,7 @@ class PropLineNode:
         self.end_pos = end_pos
 
     def __repr__(self):
-        return f'{self.condition} == {self.invert} then {self.property} = {self.value}'
+        return f'{self.condition.strip(" ")} == {not(self.invert)} then {self.property.strip(" ")} = {self.value.strip(" ")}'
 
 
 class PropSectionNode:
@@ -29,6 +29,7 @@ class PropSectionNode:
         for i in self.nodes:
             string += i.__repr__()
             string += "\n"
+        string += "\n"
         return string[:-1]
 
 class TextSectionNode:
@@ -65,7 +66,7 @@ class TextParEndNode:
         pass
 
     def __repr__(self):
-        return f'END PARAGRAPH'
+        return f'\n'
 
 class TableSplitNode:
     def __init__(self, ratio):
@@ -73,7 +74,7 @@ class TableSplitNode:
         self.total = sum(ratio)
 
     def __repr__(self):
-        return f'END PARAGRAPH'
+        return f'-' * self.total
 
 class TextCommentNode:
     def __init__(self, text, start_pos, end_pos):
@@ -89,49 +90,49 @@ class TextHeadingNode:
         self.text = text
 
     def __repr__(self):
-        return "!" + self.text
+        return self.text
 
 class Heading1Node:
     def __init__(self, text):
         self.text = text
 
     def __repr__(self):
-        return "!" + self.text
+        return self.text + "\n" + "-" * (len(self.text) + 1)
 
 class Heading2Node:
     def __init__(self, text):
         self.text = text
 
     def __repr__(self):
-        return "!" + self.text
+        return self.text + "\n" + "=" * (len(self.text) + 1)
 
 class Heading3Node:
     def __init__(self, text):
         self.text = text
 
     def __repr__(self):
-        return "!" + self.text
+        return self.text + "\n" + "+" * (len(self.text) + 1)
 
 class ListLevel1Node:
     def __init__(self, text):
         self.text = text
 
     def __repr__(self):
-        return ">" + self.text
+        return "-" + self.text
 
 class ListLevel2Node:
     def __init__(self, text):
         self.text = text
 
     def __repr__(self):
-        return ">  " + self.text
+        return "  -" + self.text
 
 class ListLevel3Node:
     def __init__(self, text):
         self.text = text
 
     def __repr__(self):
-        return ">    " + self.text
+        return "    -" + self.text
 
 class TagNode:
     def __init__(self, name, to):
@@ -139,7 +140,7 @@ class TagNode:
         self.to = to
 
     def __repr__(self):
-        return "TAG:" + self.name + "TO:" + self.to
+        return "TAG:" + self.name + ", TO:" + self.to
 
 class AlphaNumNode:
     def __init__(self, text):
